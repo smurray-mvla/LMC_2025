@@ -1,5 +1,6 @@
 package application;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,11 +26,13 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import model.LMC_Engine;
 
 public class MainLMC extends Application {
 	private LMC_Engine lmcEng = new LMC_Engine();
+	private static Stage pStage;
 	private static GridPane root;
 	private static BorderPane instructionPane;
 	private static GridPane memoryPane;
@@ -46,6 +49,8 @@ public class MainLMC extends Application {
 	private static TextField tfReg;
 	private static CheckBox ckOverFlow;
 	private static TextField tfProgramCounter;
+	private static FileChooser fileChooser;
+//	private static FileChooser outputChooser;
 	private static int programCounter;
 	private static int register;
 	private static int[] memory;
@@ -54,6 +59,8 @@ public class MainLMC extends Application {
 	private static HashMap<String, Integer> pnuemonicsMap;
 	private static HashSet<String> pnuemonics;
 	private static String fileName;
+	private static String dirPath;
+	private static boolean isWindows;
 
 	private static final String BLUE_BORDER = "-fx-border-color: blue;";
 	private static final String RED_BORDER = "-fx-border-color: red; -fx-border-width: 3px;";
@@ -87,8 +94,9 @@ public class MainLMC extends Application {
 		initEmulatorBox();
 
 		Scene scene = new Scene(root, 1600, 400);
-		primaryStage.setScene(scene);
-		primaryStage.show();
+		pStage = primaryStage;
+		pStage.setScene(scene);
+		pStage.show();
 	}
 
 	private static void initializeHashMap() {
@@ -182,6 +190,10 @@ public class MainLMC extends Application {
 	}
 
 	private static void selectAndImportFile() {
+		String str = "";
+		if (!dirPath.isEmpty()) 
+			fileChooser.setInitialDirectory(new File(dirPath));
+		File temp = fileChooser.showOpenDialog(pStage);
 		
 		
 	}
@@ -194,6 +206,7 @@ public class MainLMC extends Application {
 		compAndLoad.setPrefWidth(150);
 		compAndLoad.setAlignment(Pos.CENTER);
 		compAndLoad.setOnAction(e -> compileAndLoadMemory());
+		fileChooser = new FileChooser();
 		importFile = new Button("Import...");
 		importFile.setOnAction(e->selectAndImportFile());
 		instructionBox.getChildren().addAll(compAndLoad,importFile);
@@ -490,6 +503,8 @@ public class MainLMC extends Application {
 	}
 
 	public static void main(String[] args) {
+		isWindows = System.getProperty("os.name").contains("Win");
+		dirPath = System.getProperty("user.dir");
 		launch(args);
 	}
 }
