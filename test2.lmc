@@ -1,0 +1,8 @@
+@98 big: 998
+@99 one: 1
+LDA 98
+ADD 99
+ADD 99
+SUB 98
+SUB 99
+HLT
