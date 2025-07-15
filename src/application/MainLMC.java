@@ -20,6 +20,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -28,6 +29,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -61,6 +63,9 @@ public class MainLMC extends Application {
 	private static TextField tfProgramCounter;
 	private static FileChooser fileChooser;
 	private static VBox vb;
+	private static CheckMenuItem mFast;
+	private static CheckMenuItem mSlow;
+	private static CheckMenuItem mNormal;
 //	private static FileChooser outputChooser;
 	private static int programCounter;
 	private static int register;
@@ -78,6 +83,7 @@ public class MainLMC extends Application {
 	private static boolean active = false;
 	private static boolean done = false;
 	private static int runDelay = 250;
+	private static boolean debugMode = false;
 
 	private static final String BLUE_BORDER = "-fx-border-color: blue;";
 	private static final String RED_BORDER = "-fx-border-color: red; -fx-border-width: 3px;";
@@ -132,21 +138,54 @@ public class MainLMC extends Application {
 		MenuItem mSMC = new MenuItem("How To: Self-Modifying Code");
 		MenuItem mDump = new MenuItem("Memory Dumps");
 		mAbout.getItems().addAll(mVer,mLbl,mVar,mSMC,mDump);
-		MenuItem mFast = new MenuItem("Run with 100mS delay");
-		MenuItem mNormal = new MenuItem("Run with 250mS delay (default)");
-		MenuItem mSlow = new MenuItem("Run with 500mS delay");
-		mControl.getItems().addAll(mFast, mNormal, mSlow);
+		mFast = new CheckMenuItem("Run with 100mS delay");
+		mFast.setSelected(false);
+		mFast.setOnAction(e -> updateRunDelay(e));
+		mNormal = new CheckMenuItem("Run with 250mS delay (default)");
+		mNormal.setSelected(true);
+		mNormal.setOnAction(e -> updateRunDelay(e));
+		mSlow = new CheckMenuItem("Run with 500mS delay");
+		mSlow.setOnAction(e -> updateRunDelay(e));
+		mSlow.setSelected(false);
+		CheckMenuItem mDebugMode = new CheckMenuItem("Debug Mode");
+		mDebugMode.setSelected(false);
+		mDebugMode.setOnAction(e -> updateDebugMode());
+		mControl.getItems().addAll(mFast, mNormal, mSlow,mDebugMode);
 		mb.getMenus().addAll(mAbout,mControl);
 		vb = new VBox(mb,root);
 	}
+	
+	private static void updateDebugMode() {
+		debugMode = !debugMode;
+		for (int i = 0; i < memoryTF.length; i++) {
+			memoryTF[i].setEditable(debugMode);
+		}
+		tfProgramCounter.setEditable(debugMode);
+		tfReg.setEditable(debugMode);
+		consoleText.setText("Debug Mode is "+((debugMode)?"Enabled":"Disabled")+"\n");
+	}
 
 	private static void updateRunDelay(ActionEvent e) {
-		if (((MenuItem) e.getSource()).getText().contains("100ms")) 
+		mFast.setSelected(false);
+		mNormal.setSelected(false);
+		mSlow.setSelected(false);
+		consoleText.clear();
+		CheckMenuItem selected = ((CheckMenuItem) e.getSource());
+		String selection = selected.getText();
+		if (selection.contains("100mS")) { 
 			runDelay = 100;
-		else if (((MenuItem) e.getSource()).getText().contains("250ms")) 
+			mFast.setSelected(true);
+			consoleText.setText("Run delay time between steps set to 100mS\n");
+		} else if (selection.contains("250mS")) { 
 			runDelay = 250;
-		else if (((MenuItem) e.getSource()).getText().contains("250ms")) 
+			mNormal.setSelected(true);
+			consoleText.setText("Run delay time between steps set to 250mS\n");
+		} else if (selection.contains("500mS")) {
 			runDelay = 500;
+			mSlow.setSelected(true);
+			consoleText.setText("Run delay time between steps set to 500mS\b");
+		}
+		
 	}
 	
 	private static void initializeHashMap() {
@@ -427,7 +466,6 @@ public class MainLMC extends Application {
 		tfProgramCounter.setText("" + programCounter);
 		tfReg.setText("" + register);
 		ckOverFlow.setSelected(overflow);
-//		memoryPane.requestLayout();
 		active = false;
 	}
 
@@ -448,8 +486,6 @@ public class MainLMC extends Application {
 		}).start();
 	}
 
-//		t = new Timeline(new KeyFrame(Duration.millis(500),ae -> stepLMC()));
-//		t.play();
 
 	private static void printInstructionSet() {
 		String instSet = "";
@@ -598,7 +634,7 @@ public class MainLMC extends Application {
 		for (int i = 0; i < memoryTF.length; i++) {
 			memoryTF[i] = new TextField("" + memory[i]);
 			memoryTF[i].setAlignment(Pos.CENTER_RIGHT);
-//			memoryTF[i].setEditable(false);
+			memoryTF[i].setEditable(false);
 			memoryTF[i].setPrefWidth(50);
 			updateMemoryBorder(i, (i == programCounter) ? GREEN_BORDER : BLUE_BORDER);
 			memoryTF[i].setOnAction(e -> memoryTFChanged(e));
