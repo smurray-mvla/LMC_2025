@@ -1,8 +1,11 @@
 package application;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -29,7 +32,6 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
-import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -40,10 +42,8 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import model.LMC_Engine;
 
 public class MainLMC extends Application {
-	private LMC_Engine lmcEng = new LMC_Engine();
 	private static Stage pStage;
 	private static GridPane root;
 	private static BorderPane instructionPane;
@@ -84,6 +84,8 @@ public class MainLMC extends Application {
 	private static boolean done = false;
 	private static int runDelay = 250;
 	private static boolean debugMode = false;
+	private static final String VERSION = "1";
+	private static final String SUBVERSION = "0";
 
 	private static final String BLUE_BORDER = "-fx-border-color: blue;";
 	private static final String RED_BORDER = "-fx-border-color: red; -fx-border-width: 3px;";
@@ -127,78 +129,74 @@ public class MainLMC extends Application {
 		pStage.setScene(scene);
 		pStage.show();
 	}
-
-	private static void initMenus() {
-		MenuBar mb = new MenuBar();
-		Menu mAbout = new Menu("About...");
-		Menu mControl = new Menu("Run Controls");
-		MenuItem mVer = new MenuItem("Version");
-		MenuItem mLbl = new MenuItem("How To: Labels");
-		MenuItem mVar = new MenuItem("How To: Variables");
-		MenuItem mSMC = new MenuItem("How To: Self-Modifying Code");
-		MenuItem mDump = new MenuItem("Memory Dumps");
-		mAbout.getItems().addAll(mVer,mLbl,mVar,mSMC,mDump);
-		mFast = new CheckMenuItem("Run with 100mS delay");
-		mFast.setSelected(false);
-		mFast.setOnAction(e -> updateRunDelay(e));
-		mNormal = new CheckMenuItem("Run with 250mS delay (default)");
-		mNormal.setSelected(true);
-		mNormal.setOnAction(e -> updateRunDelay(e));
-		mSlow = new CheckMenuItem("Run with 500mS delay");
-		mSlow.setOnAction(e -> updateRunDelay(e));
-		mSlow.setSelected(false);
-		CheckMenuItem mDebugMode = new CheckMenuItem("Debug Mode");
-		mDebugMode.setSelected(false);
-		mDebugMode.setOnAction(e -> updateDebugMode());
-		mControl.getItems().addAll(mFast, mNormal, mSlow,mDebugMode);
-		mb.getMenus().addAll(mAbout,mControl);
-		vb = new VBox(mb,root);
-	}
 	
-	private static void updateDebugMode() {
-		debugMode = !debugMode;
+	/**
+	 * GUI Initialization/Layout and HashMap initialization
+	 */
+	
+	private static void initEmulationPane() {
+		emulationPane = new BorderPane();
+		emulationPane.setPrefWidth(600);
+		Label lblEmulator = new Label("Emulator Console:");
+		emulationPane.setTop(lblEmulator);
+		consoleText = new TextArea();
+		consoleText.setEditable(false);
+		consoleText.setStyle(RED_FONT);
+		consoleText.setFont(Font.font("Courier New", FontWeight.BOLD, 14));
+		consoleText.setPrefColumnCount(120);
+		consoleText.setPrefRowCount(1000);
+		ScrollPane emulSP = new ScrollPane();
+		emulSP.setPrefHeight(300);
+		emulSP.setContent(consoleText);
+		emulationPane.setCenter(emulSP);
+		root.add(emulationPane, 2, 0);
+	}
+
+	private static void initMemoryPane() {
+		memoryPane = new GridPane();
+		memoryPane.setHgap(5);
+		memoryPane.setVgap(5);
+
+		Label[] hLbl = new Label[10];
+		Label[] vLbl = new Label[10];
+
+		memoryTF = new TextField[100];
 		for (int i = 0; i < memoryTF.length; i++) {
-			memoryTF[i].setEditable(debugMode);
+			memoryTF[i] = new TextField("" + memory[i]);
+			memoryTF[i].setAlignment(Pos.CENTER_RIGHT);
+			memoryTF[i].setEditable(false);
+			memoryTF[i].setPrefWidth(50);
+			updateMemoryBorder(i, (i == programCounter) ? GREEN_BORDER : BLUE_BORDER);
+			memoryTF[i].setOnAction(e -> memoryTFChanged(e));
+			memoryPane.add(memoryTF[i], (i % 10) + 1, (i / 10) + 1);
+			if (i < 10) {
+				hLbl[i] = new Label("" + i);
+				hLbl[i].setFont(hdrFont);
+				memoryPane.add(hLbl[i], i + 1, 0);
+				memoryPane.setHalignment(hLbl[i], HPos.CENTER);
+				memoryPane.setValignment(hLbl[i], VPos.BOTTOM);
+				vLbl[i] = new Label("" + i * 10);
+				vLbl[i].setFont(hdrFont);
+				vLbl[i].setPrefWidth(25);
+				vLbl[i].setAlignment(Pos.CENTER_RIGHT);
+				memoryPane.add(vLbl[i], 0, i + 1);
+			}
 		}
-		tfProgramCounter.setEditable(debugMode);
-		tfReg.setEditable(debugMode);
-		consoleText.setText("Debug Mode is "+((debugMode)?"Enabled":"Disabled")+"\n");
+		root.add(memoryPane, 1, 0);
 	}
 
-	private static void updateRunDelay(ActionEvent e) {
-		mFast.setSelected(false);
-		mNormal.setSelected(false);
-		mSlow.setSelected(false);
-		consoleText.clear();
-		CheckMenuItem selected = ((CheckMenuItem) e.getSource());
-		String selection = selected.getText();
-		if (selection.contains("100mS")) { 
-			runDelay = 100;
-			mFast.setSelected(true);
-			consoleText.setText("Run delay time between steps set to 100mS\n");
-		} else if (selection.contains("250mS")) { 
-			runDelay = 250;
-			mNormal.setSelected(true);
-			consoleText.setText("Run delay time between steps set to 250mS\n");
-		} else if (selection.contains("500mS")) {
-			runDelay = 500;
-			mSlow.setSelected(true);
-			consoleText.setText("Run delay time between steps set to 500mS\b");
-		}
-		
-	}
-	
-	private static void initializeHashMap() {
-		pnuemonicsMap.put("HLT", 0);
-		pnuemonicsMap.put("ADD", 1);
-		pnuemonicsMap.put("SUB", 2);
-		pnuemonicsMap.put("STA", 3);
-		pnuemonicsMap.put("LDA", 5);
-		pnuemonicsMap.put("BRA", 6);
-		pnuemonicsMap.put("BRZ", 7);
-		pnuemonicsMap.put("BRP", 8);
-		pnuemonicsMap.put("INP", 9);
-		pnuemonicsMap.put("OUT", 9);
+	private static void initInstructionPane() {
+		instructionPane = new BorderPane();
+		instructionPane.setPrefWidth(400);
+		Label lblInst = new Label("Instructions:");
+		instructionText = new TextArea();
+		instructionText.setPrefHeight(300);
+		instructionPane.setTop(lblInst);
+		ScrollPane instSP = new ScrollPane();
+		instSP.setPrefHeight(300);
+		instSP.setContent(instructionText);
+		instructionPane.setCenter(instSP);
+		root.add(instructionPane, 0, 0);
 	}
 
 	private static void initEmulatorBox() {
@@ -239,10 +237,148 @@ public class MainLMC extends Application {
 		ckOverFlow = new CheckBox();
 		ckOverFlow.setText("<<overflow");
 		ckOverFlow.setSelected(overflow);
+		ckOverFlow.setOnAction(e -> updateOverFlow());
+		
 		executionBox.getChildren().addAll(reset, step, run, lblPC, tfProgramCounter, lblReg, tfReg, ckOverFlow);
 		root.add(executionBox, 1, 1);
 	}
 
+	private static void initInstructionBox() {
+		instructionBox = new HBox();
+		instructionBox.setAlignment(Pos.CENTER);
+		instructionBox.setSpacing(15);
+		compAndLoad = new Button("Compile/Load Memory");
+		compAndLoad.setPrefWidth(150);
+		compAndLoad.setAlignment(Pos.CENTER);
+		compAndLoad.setOnAction(e -> compileAndLoadMemory());
+		fileChooser = new FileChooser();
+		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("lmc Files", "*.lmc"));
+		importFile = new Button("Import...");
+		importFile.setOnAction(e -> instructionText.setText(selectAndImportFile()));
+		exportFile = new Button("Export...");
+		exportFile.setOnAction(e -> exportInstructionTextToFile());
+		instructionBox.getChildren().addAll(compAndLoad, importFile, exportFile);
+
+		root.add(instructionBox, 0, 1);
+		GridPane.setHalignment(instructionBox, HPos.CENTER);
+	}
+
+	private static void initMenus() {
+		MenuBar mb = new MenuBar();
+		Menu mAbout = new Menu("About...");
+		Menu mControl = new Menu("Run Controls");
+		MenuItem mVer = new MenuItem("Version");
+		mVer.setOnAction(e -> outputVersionToConsole());
+		MenuItem mCompile = new MenuItem("Compiler Instruction Format");
+		MenuItem mLbl = new MenuItem("How To: Labels");
+		MenuItem mVar = new MenuItem("How To: Variables");
+		MenuItem mSMC = new MenuItem("How To: Self-Modifying Code");
+		mCompile.setOnAction(e -> outputInfoToConsole(e));
+		mLbl.setOnAction(e -> outputInfoToConsole(e));
+		mVar.setOnAction(e -> outputInfoToConsole(e));
+		mSMC.setOnAction(e -> outputInfoToConsole(e));
+		MenuItem mDump = new MenuItem("Memory Dumps");
+		mDump.setOnAction(e -> outputInfoToConsole(e));
+		mAbout.getItems().addAll(mVer,mCompile,mLbl,mVar,mSMC,mDump);
+		mFast = new CheckMenuItem("Run with 100mS delay");
+		mFast.setSelected(false);
+		mFast.setOnAction(e -> updateRunDelay(e));
+		mNormal = new CheckMenuItem("Run with 250mS delay (default)");
+		mNormal.setSelected(true);
+		mNormal.setOnAction(e -> updateRunDelay(e));
+		mSlow = new CheckMenuItem("Run with 500mS delay");
+		mSlow.setOnAction(e -> updateRunDelay(e));
+		mSlow.setSelected(false);
+		CheckMenuItem mDebugMode = new CheckMenuItem("Debug Mode");
+		mDebugMode.setSelected(false);
+		mDebugMode.setOnAction(e -> updateDebugMode());
+		mControl.getItems().addAll(mFast, mNormal, mSlow,mDebugMode);
+		mb.getMenus().addAll(mAbout,mControl);
+		vb = new VBox(mb,root);
+	}
+	
+	private static void initializeHashMap() {
+		pnuemonicsMap.put("HLT", 0);
+		pnuemonicsMap.put("ADD", 1);
+		pnuemonicsMap.put("SUB", 2);
+		pnuemonicsMap.put("STA", 3);
+		pnuemonicsMap.put("LDA", 5);
+		pnuemonicsMap.put("BRA", 6);
+		pnuemonicsMap.put("BRZ", 7);
+		pnuemonicsMap.put("BRP", 8);
+		pnuemonicsMap.put("INP", 9);
+		pnuemonicsMap.put("OUT", 9);
+	}
+	
+	/**
+	 * GUI Helper Methods
+	 */
+
+	private static void updateOverFlow() {
+		if (debugMode) {
+			overflow = !overflow;
+		}
+		ckOverFlow.setSelected(overflow);
+	}
+	
+	private static void outputVersionToConsole() {
+		String str = "APCS LMC Version: "+VERSION +"."+SUBVERSION+"\n";
+		consoleText.setText(str);
+	}
+	
+	private static void outputInfoToConsole(ActionEvent e) {
+		MenuItem m = ((MenuItem) e.getSource());
+		String mStr = m.getText();
+		String info = null;
+		if (mStr.contains("Labels")) {
+			info = readFileFromResources("howtolabels.txt");
+		} else if (mStr.contains("Variables")) {
+			info = readFileFromResources("howtovariables.txt");
+		} else if (mStr.contains("Self-Modifying Code")) {
+			info = readFileFromResources("howtoselfmodifycode.txt");
+		} else if (mStr.contains("Memory Dumps")) {
+			info = readFileFromResources("memorydumps.txt");
+		} else if (mStr.contains("Compiler")) {
+			info = readFileFromResources("compilerinstructionformat.txt");
+		}
+		if (info != null) {
+			consoleText.setText(info);
+		}
+	}
+
+	private static void updateDebugMode() {
+		debugMode = !debugMode;
+		for (int i = 0; i < memoryTF.length; i++) {
+			memoryTF[i].setEditable(debugMode);
+		}
+		tfProgramCounter.setEditable(debugMode);
+		tfReg.setEditable(debugMode);
+		consoleText.setText("Debug Mode is "+((debugMode)?"Enabled":"Disabled")+"\n");
+	}
+
+	private static void updateRunDelay(ActionEvent e) {
+		mFast.setSelected(false);
+		mNormal.setSelected(false);
+		mSlow.setSelected(false);
+		consoleText.clear();
+		CheckMenuItem selected = ((CheckMenuItem) e.getSource());
+		String selection = selected.getText();
+		if (selection.contains("100mS")) { 
+			runDelay = 100;
+			mFast.setSelected(true);
+			consoleText.setText("Run delay time between steps set to 100mS\n");
+		} else if (selection.contains("250mS")) { 
+			runDelay = 250;
+			mNormal.setSelected(true);
+			consoleText.setText("Run delay time between steps set to 250mS\n");
+		} else if (selection.contains("500mS")) {
+			runDelay = 500;
+			mSlow.setSelected(true);
+			consoleText.setText("Run delay time between steps set to 500mS\b");
+		}
+		
+	}
+	
 	private static void resetState() {
 		programCounter = 0;
 		prevPC = 0;
@@ -307,201 +443,28 @@ public class MainLMC extends Application {
 		out.showAndWait();
 	}
 
-	private static void execute_HLT() {
-		if (!done) {
-			consoleText.setText(consoleText.getText() + "\nLMC: HLT - Program Ended");
-			endProgramAlert();
-//			System.out.println("LMC: HLT - Program Ended");
-			done = true;
-		}
+
+	private static String readFileFromResources(String fileName) {
+		String str = "";
+		File inFile = new File("resources/"+fileName);
+		try {
+			BufferedReader data = new BufferedReader(new FileReader(inFile));
+			String line;
+			while ((line = data.readLine()) != null) {
+				str += line + "\n";
+			}
+			data.close();
+		} catch (IOException e) {
+			System.out.println("Unexpected error occurred - could not process resources/"+fileName);
+			e.printStackTrace();
+		}			
+		return str;
+		
 	}
-
-	private static void execute_INP() {
-		getInputFromUser();
-		String msg = consoleText.getText();
-		if (!msg.isEmpty())
-			msg += "\n";
-		msg += "LMC: INP (" + (register) + ")";
-//		System.out.println("LMC: INP (" + (register) + ")");
-		consoleText.setText(msg);
-		overflow = false; // clear the overflow flag on INP - prior value makes no sense...
-		programCounter++;
-	}
-
-	private static void execute_OUT() {
-		outputRegToUser();
-		String msg = consoleText.getText();
-		if (!msg.isEmpty())
-			msg += "\n";
-		msg += "LMC: OUT (" + register + ")";
-//		System.out.println("LMC: OUT (" + (register) + ")");
-		consoleText.setText(msg);
-		programCounter++;
-	}
-
-	private static void execute_ADD(int memLoc) {
-		String msg = consoleText.getText();
-		if (!msg.isEmpty())
-			msg += "\n";
-		msg += "LMC: ADD #" + String.format("%02d", memLoc) + " (" + memory[memLoc] + ")";
-//		System.out.println("LMC: ADD #" + String.format("%02d", memLoc) + " (" + memory[memLoc] + ")");
-		consoleText.setText(msg);
-		register += memory[memLoc];
-		overflow = register > 999;
-		if (overflow)
-			register -= 1000;
-		programCounter++;
-	}
-
-	private static void execute_SUB(int memLoc) {
-		String msg = consoleText.getText();
-		if (!msg.isEmpty())
-			msg += "\n";
-		msg += "LMC: SUB #" + String.format("%02d", memLoc) + " (" + memory[memLoc] + ")";
-//		System.out.println("LMC: SUB #" + String.format("%02d", memLoc) + " (" + memory[memLoc] + ")");
-		consoleText.setText(msg);
-		register -= memory[memLoc];
-		overflow = register < 0;
-		if (overflow)
-			register += 1000;
-		programCounter++;
-	}
-
-	private static void execute_STA(int memLoc) {
-		String msg = consoleText.getText();
-		if (!msg.isEmpty())
-			msg += "\n";
-		msg += "LMC: STA " + memLoc + " (storing " + register + " into #" + String.format("%02d", memLoc) + ")";
-//		System.out.println("LMC: STA " + memLoc + " (storing " + register + " into #" + String.format("%02d", memLoc) + ")");
-		consoleText.setText(msg);
-		memory[memLoc] = register;
-		memoryTF[memLoc].setText("" + register);
-		programCounter++;
-	}
-
-	private static void execute_LDA(int memLoc) {
-		String msg = consoleText.getText();
-		if (!msg.isEmpty())
-			msg += "\n";
-		msg += "LMC: LDA " + memLoc + " (loading " + memory[memLoc] + " from #" + String.format("%02d", memLoc) + ")";
-//		System.out.println("LMC: LDA " + memLoc + " (loading " + memory[memLoc] + " from #" + String.format("%02d", memLoc) + ")");
-		consoleText.setText(msg);
-		register = memory[memLoc];
-		overflow = false; // clear the overflow flag on a load (prior value makes no sense)
-		programCounter++;
-	}
-
-	private static void execute_BRA(int memLoc) {
-		String msg = consoleText.getText();
-		if (!msg.isEmpty())
-			msg += "\n";
-		msg += "LMC: BRA " + memLoc + " (branch to #" + String.format("%02d", memLoc) + ")";
-//		System.out.println("LMC: BRA " + memLoc + " (branch to #" + String.format("%02d", memLoc) + ")");
-		consoleText.setText(msg);
-		programCounter = memLoc;
-	}
-
-	private static void execute_BRZ(int memLoc) {
-		String msg = consoleText.getText();
-		if (!msg.isEmpty())
-			msg += "\n";
-		msg += "LMC: BRZ " + memLoc + " (branch to #" + String.format("%02d", memLoc) + " if zero)";
-//		System.out.println("LMC: BRZ " + memLoc + " (branch to #" + String.format("%02d", memLoc) + " if zero)");
-		consoleText.setText(msg);
-		if (register == 0 && !overflow) // CHG: only branch if register truly is zero - no overflow
-			programCounter = memLoc;
-		else
-			programCounter++;
-	}
-
-	private static void execute_BRP(int memLoc) {
-		String msg = consoleText.getText();
-		if (!msg.isEmpty())
-			msg += "\n";
-		msg += "LMC: BRP " + memLoc + " (branch to #" + String.format("%02d", memLoc) + " if positive)";
-//		System.out.println("LMC: BRP " + memLoc + " (branch to #" + String.format("%02d", memLoc) + " if positive)");
-		consoleText.setText(msg);
-		if (!overflow && register > 0)
-			programCounter = memLoc;
-		else
-			programCounter++;
-	}
-
-	private static void executeInstruction(int opcode, int memLoc) {
-		switch (opcode) {
-		case 0 -> execute_HLT();
-		case 9 -> {
-			if (memLoc == 1)
-				execute_INP();
-			else if (memLoc == 2)
-				execute_OUT();
-		}
-		case 1 -> execute_ADD(memLoc);
-		case 2 -> execute_SUB(memLoc);
-		case 3 -> execute_STA(memLoc);
-		case 5 -> execute_LDA(memLoc);
-		case 6 -> execute_BRA(memLoc);
-		case 7 -> execute_BRZ(memLoc);
-		case 8 -> execute_BRP(memLoc);
-		}
-	}
-
-	private static void stepLMC() {
-		active = true;
-		updateMemoryBorder(prevPC, BLUE_BORDER);
-		updateMemoryBorder(programCounter, RED_BORDER);
-		prevPC = programCounter;
-		int instr = memory[programCounter];
-		int opcode = instr / 100;
-		int memLoc = instr % 100;
-		if (prevMemLoc != -1 && prevMemLoc != programCounter) {
-			updateMemoryBorder(prevMemLoc, BLUE_BORDER);
-			prevMemLoc = -1;
-		}
-		if (opcode != 0 && opcode != 9) {
-			updateMemoryBorder(memLoc, CYAN_BORDER);
-			prevMemLoc = memLoc;
-		}
-		executeInstruction(opcode, memLoc);
-		tfProgramCounter.setText("" + programCounter);
-		tfReg.setText("" + register);
-		ckOverFlow.setSelected(overflow);
-		active = false;
-	}
-
-	private static void runLMC() {
-
-		new Thread(() -> {
-			do {
-				try {
-					Thread.sleep(runDelay);
-				} catch (InterruptedException e) {
-
-				}
-				Platform.runLater(() -> {
-					if (!active)
-						stepLMC();
-				});
-			} while (!done);
-		}).start();
-	}
-
 
 	private static void printInstructionSet() {
-		String instSet = "";
-		instSet += "  0  [HLT]    halts execution\n";
-		instSet += "1xx  [ADD xx] adds value at 'xx' to register\n";
-		instSet += "2xx  [SUB xx] subtracts value at 'xx' from register\n";
-		instSet += "3xx  [STA xx] stores register value in memory @ 'xx'\n";
-		instSet += "5xx  [LDA xx] loads register with value in memory @ 'xx'\n";
-		instSet += "6xx  [BRA xx] branches to 'xx;\n";
-		instSet += "7xx  [BRZ xx] branches to 'xx' if register value equals 0\n";
-		instSet += "8xx  [BRP xx] branches to 'xx' if register value is not equal to 0\n";
-		instSet += "              AND overflow flag was not set\n";
-		instSet += "901  [INP]    loads input from user into register\n";
-		instSet += "902  [OUT]    displays register value to user\n";
+		String instSet = readFileFromResources("instruction_set.txt");
 		consoleText.setText(instSet);
-
 	}
 
 	private static void dumpMemory() {
@@ -567,92 +530,46 @@ public class MainLMC extends Application {
 		}
 		return code;
 	}
-
-	private static void initInstructionBox() {
-		instructionBox = new HBox();
-		instructionBox.setAlignment(Pos.CENTER);
-		instructionBox.setSpacing(15);
-		compAndLoad = new Button("Compile/Load Memory");
-		compAndLoad.setPrefWidth(150);
-		compAndLoad.setAlignment(Pos.CENTER);
-		compAndLoad.setOnAction(e -> compileAndLoadMemory());
-		fileChooser = new FileChooser();
-		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("lmc Files", "*.lmc"));
-		importFile = new Button("Import...");
-		importFile.setOnAction(e -> instructionText.setText(selectAndImportFile()));
-		instructionBox.getChildren().addAll(compAndLoad, importFile);
-
-		root.add(instructionBox, 0, 1);
-		GridPane.setHalignment(instructionBox, HPos.CENTER);
+	
+	private static boolean exportFile(File file) {
+		if (file == null || file.getPath() == null ) {
+			return false;
+		} else {
+			BufferedWriter bw;
+			try {
+				bw = new BufferedWriter(new FileWriter(file));
+				bw.write(instructionText.getText());
+				bw.close();
+			} catch (IOException e) {
+				System.out.println("Exception occurred while trying to write "+file.getName());
+				return false;
+			}
+		}
+		return true;
 	}
 
-	private static void initEmulationPane() {
-		emulationPane = new BorderPane();
-		emulationPane.setPrefWidth(600);
-		Label lblEmulator = new Label("Emulator Console:");
-		emulationPane.setTop(lblEmulator);
-		consoleText = new TextArea();
-		consoleText.setEditable(false);
-		consoleText.setStyle(RED_FONT);
-		consoleText.setFont(Font.font("Courier New", FontWeight.BOLD, 14));
-		consoleText.setPrefColumnCount(120);
-		consoleText.setPrefRowCount(1000);
-		ScrollPane emulSP = new ScrollPane();
-		emulSP.setPrefHeight(300);
-		emulSP.setContent(consoleText);
-		emulationPane.setCenter(emulSP);
-		root.add(emulationPane, 2, 0);
-	}
-
-	private static void initInstructionPane() {
-		instructionPane = new BorderPane();
-		instructionPane.setPrefWidth(400);
-		Label lblInst = new Label("Instructions:");
-		instructionText = new TextArea();
-		instructionText.setPrefHeight(300);
-		instructionPane.setTop(lblInst);
-		ScrollPane instSP = new ScrollPane();
-		instSP.setPrefHeight(300);
-		instSP.setContent(instructionText);
-		instructionPane.setCenter(instSP);
-		root.add(instructionPane, 0, 0);
+	private static void exportInstructionTextToFile() {
+		if (instructionText.getText().isEmpty()) {
+			consoleText.setText("Instruction Window is empty - nothing to Export!!");
+		} else {
+			if (!dirPath.isEmpty())
+				fileChooser.setInitialDirectory(new File(dirPath));
+			if (!fileName.isEmpty()) {
+				fileChooser.setInitialFileName(fileName);
+			}
+			File temp = fileChooser.showSaveDialog(pStage);
+			if (exportFile(temp)) {
+				dirPath = extractDir(temp.getPath());
+				fileName = temp.getName();
+				consoleText.setText("Successfully saved file: "+temp.getName());
+			} else {
+				consoleText.setText("Unable to save file: "+temp.getName());
+			}
+		}
 	}
 
 	private static void updateMemoryBorder(int location, String border) {
 		memoryTF[location].setStyle(border);
-	}
-
-	private static void initMemoryPane() {
-		memoryPane = new GridPane();
-		memoryPane.setHgap(5);
-		memoryPane.setVgap(5);
-
-		Label[] hLbl = new Label[10];
-		Label[] vLbl = new Label[10];
-
-		memoryTF = new TextField[100];
-		for (int i = 0; i < memoryTF.length; i++) {
-			memoryTF[i] = new TextField("" + memory[i]);
-			memoryTF[i].setAlignment(Pos.CENTER_RIGHT);
-			memoryTF[i].setEditable(false);
-			memoryTF[i].setPrefWidth(50);
-			updateMemoryBorder(i, (i == programCounter) ? GREEN_BORDER : BLUE_BORDER);
-			memoryTF[i].setOnAction(e -> memoryTFChanged(e));
-			memoryPane.add(memoryTF[i], (i % 10) + 1, (i / 10) + 1);
-			if (i < 10) {
-				hLbl[i] = new Label("" + i);
-				hLbl[i].setFont(hdrFont);
-				memoryPane.add(hLbl[i], i + 1, 0);
-				memoryPane.setHalignment(hLbl[i], HPos.CENTER);
-				memoryPane.setValignment(hLbl[i], VPos.BOTTOM);
-				vLbl[i] = new Label("" + i * 10);
-				vLbl[i].setFont(hdrFont);
-				vLbl[i].setPrefWidth(25);
-				vLbl[i].setAlignment(Pos.CENTER_RIGHT);
-				memoryPane.add(vLbl[i], 0, i + 1);
-			}
-		}
-		root.add(memoryPane, 1, 0);
 	}
 
 	private static void memoryTFChanged(ActionEvent e) {
@@ -694,8 +611,11 @@ public class MainLMC extends Application {
 		}
 	}
 
+	/**
+	 * Compilation Section
+	 */
+	
 	private static void compileAndLoadMemory() {
-//		resetLMC(false);
 		clearLogs();
 		clearMemory();
 		consoleText.setText("Compiling source...");
@@ -735,6 +655,56 @@ public class MainLMC extends Application {
 		if (!compileSourceCode(source))
 			return false;
 
+		return true;
+	}
+
+	private static int getMemoryLocation(String str) {
+		try {
+			int memLoc = Integer.parseInt(str);
+			if (memLoc < 0 || memLoc > 99)
+				return -1;
+			return memLoc;
+		} catch (NumberFormatException e) {
+			return -1;
+		}
+	}
+	
+	private static boolean assignLabelMemoryLocations(ArrayList<String> source) {
+		programCounter = 0;
+		int lineNum = 0;
+		for (String line : source) {
+			lineNum++;
+			if (line.matches("^\\s*$"))
+				continue; // skip any blank lines
+			String[] tokens = line.split("\\s+");
+			int memLoc = programCounter;
+			int index = 0;
+			if (tokens[index].startsWith("@")) {
+				memLoc = getMemoryLocation(tokens[index].substring(1));
+				if (memLoc == -1) {
+					return outputCompileResults(line, "Invalid memory location (" + tokens[index] + ") specified",
+							lineNum);
+				}
+				index++;
+			} else {
+				memLoc = programCounter;
+			}
+			if (tokens[index].contains(":")) {
+				if (tokens[index].matches("^[a-z][a-z0-9]*:")) {
+					String label = tokens[index].substring(0, tokens[index].length() - 1);
+					if (labelMap.containsKey(label)) {
+						return outputCompileResults(line, "Duplicate label (\'" + label + "\') specified", lineNum);
+					}
+					labelMap.put(label, memLoc);
+				} else {
+					return outputCompileResults(line, "Invalid label format (\'" + tokens[index] + "\') specified",
+							lineNum);
+				}
+				index++;
+				if (index == tokens.length) continue;
+			}
+			programCounter++;
+		}
 		return true;
 	}
 
@@ -803,9 +773,11 @@ public class MainLMC extends Application {
 				memAddr = getMemoryLocation(tokens[index].substring(1));
 				index++;
 			}
+			if (index == tokens.length) outputCompileResults(line,"@XX requires label and/or instruction!",lineNum);
 			if (tokens[index].contains(":")) { // skip any labels -- already processed
 				index++;
-			}
+			} 
+			if (index == tokens.length) continue;  // case if there is no instruction after the label
 			value = compileTokens(tokens, index);
 			// try converting value as an integer... if it works, then done
 			if (value == -1) {
@@ -838,54 +810,185 @@ public class MainLMC extends Application {
 		}
 	}
 
-	private static boolean assignLabelMemoryLocations(ArrayList<String> source) {
-		programCounter = 0;
-		int lineNum = 0;
-		for (String line : source) {
-			lineNum++;
-			if (line.matches("^\\s*$"))
-				continue; // skip any blank lines
-			String[] tokens = line.split("\\s+");
-			int memLoc = programCounter;
-			int index = 0;
-			if (tokens[index].startsWith("@")) {
-				memLoc = getMemoryLocation(tokens[index].substring(1));
-				if (memLoc == -1) {
-					return outputCompileResults(line, "Invalid memory location (" + tokens[index] + ") specified",
-							lineNum);
-				}
-				index++;
-			} else {
-				memLoc = programCounter;
-			}
-			if (tokens[index].contains(":")) {
-				if (tokens[index].matches("^[a-z][a-z0-9]*:")) {
-					String label = tokens[index].substring(0, tokens[index].length() - 1);
-					if (labelMap.containsKey(label)) {
-						return outputCompileResults(line, "Duplicate label (\'" + label + "\') specified", lineNum);
-					}
-					labelMap.put(label, memLoc);
-				} else {
-					return outputCompileResults(line, "Invalid label format (\'" + tokens[index] + "\') specified",
-							lineNum);
-				}
-			}
+	/**
+	 * Instruction Execution
+	 */
+
+	private static void execute_HLT() {
+		if (!done) {
+			String msg = consoleText.getText();
+			if (!msg.isEmpty()) 
+				msg += "\n";
+			msg += "PC: "+String.format("%2d", programCounter)+" INSTR: HLT - Program Ended";
+			consoleText.setText(msg);
+			endProgramAlert();
+			done = true;
+		}
+	}
+
+	private static void execute_INP() {
+		getInputFromUser();
+		String msg = consoleText.getText();
+		if (!msg.isEmpty())
+			msg += "\n";
+		msg += "PC: "+String.format("%2d", programCounter)+" INSTR: INP (" + (register) + ")";
+		consoleText.setText(msg);
+		overflow = false; // clear the overflow flag on INP - prior value makes no sense...
+		programCounter++;
+	}
+
+	private static void execute_OUT() {
+		outputRegToUser();
+		String msg = consoleText.getText();
+		if (!msg.isEmpty())
+			msg += "\n";
+		msg += "PC: "+String.format("%2d", programCounter)+" INSTR: OUT (" + register + ")";
+		consoleText.setText(msg);
+		programCounter++;
+	}
+
+	private static void execute_ADD(int memLoc) {
+		String msg = consoleText.getText();
+		if (!msg.isEmpty())
+			msg += "\n";
+		msg += "PC: "+String.format("%2d", programCounter)+" INSTR: ADD #" + String.format("%02d", memLoc) + " (" + memory[memLoc] + ")";
+		consoleText.setText(msg);
+		register += memory[memLoc];
+		overflow = register > 999;
+		if (overflow)
+			register -= 1000;
+		programCounter++;
+	}
+
+	private static void execute_SUB(int memLoc) {
+		String msg = consoleText.getText();
+		if (!msg.isEmpty())
+			msg += "\n";
+		msg += "PC: "+String.format("%2d", programCounter)+" INSTR: SUB #" + String.format("%02d", memLoc) + " (" + memory[memLoc] + ")";
+		consoleText.setText(msg);
+		register -= memory[memLoc];
+		overflow = register < 0;
+		if (overflow)
+			register += 1000;
+		programCounter++;
+	}
+
+	private static void execute_STA(int memLoc) {
+		String msg = consoleText.getText();
+		if (!msg.isEmpty())
+			msg += "\n";
+		msg += "PC: "+String.format("%2d", programCounter)+" INSTR: STA " + memLoc + " (storing " + register + " into #" + String.format("%02d", memLoc) + ")";
+		consoleText.setText(msg);
+		memory[memLoc] = register;
+		memoryTF[memLoc].setText("" + register);
+		programCounter++;
+	}
+
+	private static void execute_LDA(int memLoc) {
+		String msg = consoleText.getText();
+		if (!msg.isEmpty())
+			msg += "\n";
+		msg += "PC: "+String.format("%2d", programCounter)+" INSTR: LDA " + memLoc + " (loading " + memory[memLoc] + " from #" + String.format("%02d", memLoc) + ")";
+		consoleText.setText(msg);
+		register = memory[memLoc];
+		overflow = false; // clear the overflow flag on a load (prior value makes no sense)
+		programCounter++;
+	}
+
+	private static void execute_BRA(int memLoc) {
+		String msg = consoleText.getText();
+		if (!msg.isEmpty())
+			msg += "\n";
+		msg += "PC: "+String.format("%2d", programCounter)+" INSTR: BRA " + memLoc + " (branch to #" + String.format("%02d", memLoc) + ") - TAKEN";
+		consoleText.setText(msg);
+		programCounter = memLoc;
+	}
+
+	private static void execute_BRZ(int memLoc) {
+		String msg = consoleText.getText();
+		if (!msg.isEmpty())
+			msg += "\n";
+		msg += "PC: "+String.format("%2d", programCounter)+" INSTR: BRZ " + memLoc + " (branch to #" + String.format("%02d", memLoc) + " if zero) - ";
+		msg += (register == 0 && !overflow) ? "TAKEN" : "NOT TAKEN";
+		consoleText.setText(msg);
+		if (register == 0 && !overflow) // CHG: only branch if register truly is zero - no overflow
+			programCounter = memLoc;
+		else
 			programCounter++;
-		}
-		return true;
 	}
 
-	private static int getMemoryLocation(String str) {
-		try {
-			int memLoc = Integer.parseInt(str);
-			if (memLoc < 0 || memLoc > 99)
-				return -1;
-			return memLoc;
-		} catch (NumberFormatException e) {
-			return -1;
+	private static void execute_BRP(int memLoc) {
+		String msg = consoleText.getText();
+		if (!msg.isEmpty())
+			msg += "\n";
+		msg += "PC: "+String.format("%2d", programCounter)+" INSTR: BRA " + memLoc + " (branch to #" + String.format("%02d", memLoc) + " if positive) - ";
+		msg += (register > 0 && !overflow) ? "TAKEN" : "NOT TAKEN";
+		consoleText.setText(msg);
+		if (!overflow && register > 0)
+			programCounter = memLoc;
+		else
+			programCounter++;
+	}
+
+	private static void executeInstruction(int opcode, int memLoc) {
+		switch (opcode) {
+		case 0 -> execute_HLT();
+		case 9 -> {
+			if (memLoc == 1)
+				execute_INP();
+			else if (memLoc == 2)
+				execute_OUT();
+		}
+		case 1 -> execute_ADD(memLoc);
+		case 2 -> execute_SUB(memLoc);
+		case 3 -> execute_STA(memLoc);
+		case 5 -> execute_LDA(memLoc);
+		case 6 -> execute_BRA(memLoc);
+		case 7 -> execute_BRZ(memLoc);
+		case 8 -> execute_BRP(memLoc);
 		}
 	}
 
+	private static void stepLMC() {
+		active = true;
+		updateMemoryBorder(prevPC, BLUE_BORDER);
+		updateMemoryBorder(programCounter, RED_BORDER);
+		prevPC = programCounter;
+		int instr = memory[programCounter];
+		int opcode = instr / 100;
+		int memLoc = instr % 100;
+		if (prevMemLoc != -1 && prevMemLoc != programCounter) {
+			updateMemoryBorder(prevMemLoc, BLUE_BORDER);
+			prevMemLoc = -1;
+		}
+		if (opcode != 0 && opcode != 9) {
+			updateMemoryBorder(memLoc, CYAN_BORDER);
+			prevMemLoc = memLoc;
+		}
+		executeInstruction(opcode, memLoc);
+		tfProgramCounter.setText("" + programCounter);
+		tfReg.setText("" + register);
+		ckOverFlow.setSelected(overflow);
+		active = false;
+	}
+
+	private static void runLMC() {
+
+		new Thread(() -> {
+			do {
+				try {
+					Thread.sleep(runDelay);
+				} catch (InterruptedException e) {
+
+				}
+				Platform.runLater(() -> {
+					if (!active)
+						stepLMC();
+				});
+			} while (!done);
+		}).start();
+	}
+	
 	public static void main(String[] args) {
 		isWindows = System.getProperty("os.name").contains("Win");
 		dirPath = System.getProperty("user.dir");

@@ -1,0 +1,11 @@
+  0  [HLT]    halts execution
+1xx  [ADD xx] adds value at 'xx' to register
+2xx  [SUB xx] subtracts value at 'xx' from register
+3xx  [STA xx] stores register value in memory @ 'xx'
+5xx  [LDA xx] loads register with value in memory @ 'xx'
+6xx  [BRA xx] branches to 'xx;
+7xx  [BRZ xx] branches to 'xx' if register value equals 0
+8xx  [BRP xx] branches to 'xx' if register value is not equal to 0
+              AND overflow flag was not set
+901  [INP]    loads input from user into register
+902  [OUT]    displays register value to user

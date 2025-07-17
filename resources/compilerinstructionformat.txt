@@ -1,0 +1,49 @@
+Compiler Instruction Format:
+
+Each instruction must be fully specified on a single line.
+Instructions may be specified in two forms:
+
+1) A 3 digit decimal value of the form X## where the value
+   X determines the instruction and ## specifies a
+   memory address from 00 -> 99. Valid values are:
+   0, 100 - > 399, 500 -> 899, 901, 902.
+
+2) A 3-letter pneumonic followed by a memory address (or label) 
+   from 0 - 99. The pneumonic and memory address must be space
+   separated. The valid pneumonics are:
+   INP, OUT, HLT, STA, LDA, ADD, SUB, BRA, BRZ, BRP
+
+In addition, there are two optional fields that *may* precede the 
+instruction. If specified, these MUST occur in the order listed 
+below:
+
+@##	Memory Location Override:
+	By default, instructions are placed in memory sequentially,
+	starting at location 0. If specified, this field forces the
+	compile to place the compiled output in the memory location
+	specified by ##. 
+
+	NOTE: This override ONLY applies to this specific 
+	instruction; subsequent instructions will be placed 
+	sequentially after the last non-overridden memory location.
+	In general, the memory location override should be used in 
+	conjunction with labels to allocate and initialize 
+	variables.
+
+<text>:	Label Specification:
+	Associates a text string with the current memory location 
+	(sequential or overridden). The text string must start with
+	a lowercase letter; subsequent characters may be a 
+	combination of lowercase letters and numbers: bob, flag1, 
+	and flag2 are all legal labels. 
+
+	Duplicate labels are not allowed and will fail compilation.
+	Labels do not have to be defined before use - but if used,
+	they must be defined somewhere in the code.
+
+Blank lines are ignored by the compiler (other than being tracked 
+for line number reference)
+
+Comments are specified by the string "//" - all subsequent text on
+the line is ignored.
+
