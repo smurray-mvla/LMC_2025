@@ -1,4 +1,4 @@
-package application;
+
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -6,6 +6,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -43,7 +45,7 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
-public class MainLMC extends Application {
+public class LMC extends Application {
 	private static Stage pStage;
 	private static GridPane root;
 	private static BorderPane instructionPane;
@@ -66,12 +68,10 @@ public class MainLMC extends Application {
 	private static CheckMenuItem mFast;
 	private static CheckMenuItem mSlow;
 	private static CheckMenuItem mNormal;
-//	private static FileChooser outputChooser;
 	private static int programCounter;
 	private static int register;
 	private static boolean overflow;
 	private static int[] memory;
-	private static String compileResults;
 	private static HashMap<String, Integer> labelMap;
 	private static HashMap<String, Integer> pnuemonicsMap;
 	private static HashSet<String> pnuemonics;
@@ -92,7 +92,6 @@ public class MainLMC extends Application {
 	private static final String CYAN_BORDER = "-fx-border-color: cyan; -fx-border-width: 3px;";
 	private static final String GREEN_BORDER = "-fx-border-color: green; -fx-border-width: 3px;";
 	private static final String RED_FONT = "-fx-text-fill: red";
-	private static final String BLACK_FONT = "-fx-text-fill: black";
 	private static final Font hdrFont = Font.font("Arial", FontWeight.BOLD, 12);
 
 	@Override
@@ -173,8 +172,8 @@ public class MainLMC extends Application {
 				hLbl[i] = new Label("" + i);
 				hLbl[i].setFont(hdrFont);
 				memoryPane.add(hLbl[i], i + 1, 0);
-				memoryPane.setHalignment(hLbl[i], HPos.CENTER);
-				memoryPane.setValignment(hLbl[i], VPos.BOTTOM);
+				GridPane.setHalignment(hLbl[i], HPos.CENTER);
+				GridPane.setValignment(hLbl[i], VPos.BOTTOM);
 				vLbl[i] = new Label("" + i * 10);
 				vLbl[i].setFont(hdrFont);
 				vLbl[i].setPrefWidth(25);
@@ -446,14 +445,16 @@ public class MainLMC extends Application {
 
 	private static String readFileFromResources(String fileName) {
 		String str = "";
-		File inFile = new File("resources/"+fileName);
+		
 		try {
-			BufferedReader data = new BufferedReader(new FileReader(inFile));
+			InputStream ins = LMC.class.getResourceAsStream(fileName);
+			BufferedReader data = new BufferedReader(new InputStreamReader(ins));
 			String line;
 			while ((line = data.readLine()) != null) {
 				str += line + "\n";
 			}
 			data.close();
+			ins.close();
 		} catch (IOException e) {
 			System.out.println("Unexpected error occurred - could not process resources/"+fileName);
 			e.printStackTrace();
@@ -643,7 +644,6 @@ public class MainLMC extends Application {
 	}
 
 	private static boolean compile(String[] code) {
-		boolean status = true;
 		ArrayList<String> source = new ArrayList<String>();
 		for (String line : code) {
 			source.add(line.replaceAll("//.*", "").replaceAll("^\\s+", "")); // remove leading spaces
@@ -932,20 +932,20 @@ public class MainLMC extends Application {
 
 	private static void executeInstruction(int opcode, int memLoc) {
 		switch (opcode) {
-		case 0 -> execute_HLT();
-		case 9 -> {
+		case 0: execute_HLT(); break;
+		case 9: 
 			if (memLoc == 1)
 				execute_INP();
 			else if (memLoc == 2)
 				execute_OUT();
-		}
-		case 1 -> execute_ADD(memLoc);
-		case 2 -> execute_SUB(memLoc);
-		case 3 -> execute_STA(memLoc);
-		case 5 -> execute_LDA(memLoc);
-		case 6 -> execute_BRA(memLoc);
-		case 7 -> execute_BRZ(memLoc);
-		case 8 -> execute_BRP(memLoc);
+			break;
+		case 1: execute_ADD(memLoc); break;
+		case 2: execute_SUB(memLoc); break;
+		case 3: execute_STA(memLoc); break;
+		case 5: execute_LDA(memLoc); break;
+		case 6: execute_BRA(memLoc); break;
+		case 7: execute_BRZ(memLoc); break;
+		case 8: execute_BRP(memLoc); break;
 		}
 	}
 
