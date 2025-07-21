@@ -1,5 +1,51 @@
 How To: Self-Modifying Code
 
-This document is under construction
+Since instructions and data share the same memory
+space, it is possible for code intentionally or 
+unintentionally modify instructions during execution.
+When intentional, this is called Self-Modifying Code.
+When unintentional, this is generally considered a 
+bug and a potential security risk.
+
+The following code* illustrates this concept,
+using self-modification to output the following
+power of 2 values to the user and then HLT:
+2, 4, 8, 16, 32, 64, 128, 256, 512
+
+=======================================================
+
+// the following instruction will be modified
+// to load values from successive memory locations
+// each time through the loop
+LDA 90
+
+BRZ end   // stop when the register == 0 (LDA 99)
+OUT       // output the current register value
+
+// Self-Modifying Code 
+LDA 0     // load instruction at location 0 
+ADD :one  // effectively increments memory location
+          // so 90 ==> 91, then 91 ==> 92, etc
+STA 0     // store the change; will execute next 
+          // time through the loop
 
 
+BRA 0     // loop back to location 0
+end: HLT  // DONE!
+
+one: 1
+
+// powers of 2
+@90 2
+@91 4
+@92 8
+@93 16
+@94 32
+@95 64
+@96 128
+@97 256
+@98 512
+@99 0
+
+*Note: Code leveraged from original lmc_ui.jar with some 
+       modifications

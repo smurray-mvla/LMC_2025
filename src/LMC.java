@@ -68,6 +68,7 @@ public class LMC extends Application {
 	private static CheckMenuItem mFast;
 	private static CheckMenuItem mSlow;
 	private static CheckMenuItem mNormal;
+	private static ScrollPane emulSP;
 	private static int programCounter;
 	private static int register;
 	private static boolean overflow;
@@ -126,6 +127,7 @@ public class LMC extends Application {
 		Scene scene = new Scene(vb, 1600, 415);
 		pStage = primaryStage;
 		pStage.setScene(scene);
+		pStage.setResizable(false);
 		pStage.show();
 	}
 	
@@ -144,10 +146,13 @@ public class LMC extends Application {
 		consoleText.setFont(Font.font("Courier New", FontWeight.BOLD, 14));
 		consoleText.setPrefColumnCount(120);
 		consoleText.setPrefRowCount(1000);
-		ScrollPane emulSP = new ScrollPane();
+		emulSP = new ScrollPane();
 		emulSP.setPrefHeight(300);
 		emulSP.setContent(consoleText);
+		emulSP.setVvalue(0);
+		emulSP.setHvalue(0);
 		emulationPane.setCenter(emulSP);
+
 		root.add(emulationPane, 2, 0);
 	}
 
@@ -322,6 +327,8 @@ public class LMC extends Application {
 	
 	private static void outputVersionToConsole() {
 		String str = "APCS LMC Version: "+VERSION +"."+SUBVERSION+"\n";
+		emulSP.setVvalue(0);
+		emulSP.setHvalue(0);
 		consoleText.setText(str);
 	}
 	
@@ -341,6 +348,8 @@ public class LMC extends Application {
 			info = readFileFromResources("compilerinstructionformat.txt");
 		}
 		if (info != null) {
+			emulSP.setVvalue(0);
+			emulSP.setHvalue(0);
 			consoleText.setText(info);
 		}
 	}
@@ -352,6 +361,8 @@ public class LMC extends Application {
 		}
 		tfProgramCounter.setEditable(debugMode);
 		tfReg.setEditable(debugMode);
+		emulSP.setVvalue(0);
+		emulSP.setHvalue(0);
 		consoleText.setText("Debug Mode is "+((debugMode)?"Enabled":"Disabled")+"\n");
 	}
 
@@ -375,6 +386,8 @@ public class LMC extends Application {
 			mSlow.setSelected(true);
 			consoleText.setText("Run delay time between steps set to 500mS\b");
 		}
+		emulSP.setVvalue(0);
+		emulSP.setHvalue(0);
 		
 	}
 	
@@ -465,6 +478,9 @@ public class LMC extends Application {
 
 	private static void printInstructionSet() {
 		String instSet = readFileFromResources("instruction_set.txt");
+		emulSP.setVvalue(0);
+		emulSP.setHvalue(0);
+
 		consoleText.setText(instSet);
 	}
 
@@ -474,10 +490,16 @@ public class LMC extends Application {
 			if (memory[i] != 0) 
 				memDump += String.format("@%02d %d\n",i,memory[i]);
 		}
+		emulSP.setVvalue(0);
+		emulSP.setHvalue(0);
+
 		consoleText.setText(memDump);
 	}
 
 	private static void clearLogs() {
+		emulSP.setVvalue(0);
+		emulSP.setHvalue(0);
+
 		consoleText.setText("");
 	}
 
@@ -550,6 +572,8 @@ public class LMC extends Application {
 	}
 
 	private static void exportInstructionTextToFile() {
+		emulSP.setVvalue(0);
+		emulSP.setHvalue(0);
 		if (instructionText.getText().isEmpty()) {
 			consoleText.setText("Instruction Window is empty - nothing to Export!!");
 		} else {
@@ -589,8 +613,8 @@ public class LMC extends Application {
 			updateMemoryLocation(i, value, true);
 
 		} catch (NumberFormatException ex) {
-			System.out.println("Exception when updating memory[" + i + "]: " + ex.getMessage());
-			System.out.println("Restoring original value of memory[" + i + "] to " + memory[i]);
+//			System.out.println("Exception when updating memory[" + i + "]: " + ex.getMessage());
+//			System.out.println("Restoring original value of memory[" + i + "] to " + memory[i]);
 			int value = memory[i];
 			memoryTF[i].setText("" + value);
 		}
@@ -599,7 +623,7 @@ public class LMC extends Application {
 	private static void updateMemoryLocation(int location, int value, boolean print) {
 		memory[location] = value;
 		if (print) {
-			System.out.println("Updated memory[" + location + "] to " + value);
+//			System.out.println("Updated memory[" + location + "] to " + value);
 			consoleText.setText("Updated memory[" + location + "] to " + value);
 		}
 	}
@@ -619,11 +643,13 @@ public class LMC extends Application {
 	private static void compileAndLoadMemory() {
 		clearLogs();
 		clearMemory();
+		emulSP.setVvalue(0);
+		emulSP.setHvalue(0);
 		consoleText.setText("Compiling source...");
 		String text = instructionText.getText();
 		boolean status = false;
 		if (text.isEmpty()) {
-			System.out.println("Nothing to compile!");
+//			System.out.println("Nothing to compile!");
 			consoleText.setText(consoleText.getText() + "\nNothing to compile!");
 			status = false;
 
@@ -631,12 +657,12 @@ public class LMC extends Application {
 			status = compile(text.split("\n"));
 		}
 		if (status) {
-			System.out.println("Loading compiled code into memory");
+//			System.out.println("Loading compiled code into memory");
 			consoleText.setText(consoleText.getText() + "\nLoading compiled code into memory");
 			for (int i = 0; i < memory.length; i++)
 				updateMemoryLocation(i, Integer.parseInt(memoryTF[i].getText()), false);
 		} else {
-			System.out.println("Clearing memory");
+//			System.out.println("Clearing memory");
 			consoleText.setText(consoleText.getText() + "\nClearing memory");
 			clearMemory();
 		}
@@ -795,15 +821,15 @@ public class LMC extends Application {
 
 	private static boolean outputCompileResults(String line, String msg, int lineNum) {
 		if ("Compilation successful".equals(msg)) {
-			System.out.println(msg);
+//			System.out.println(msg);
 			consoleText.setText(consoleText.getText() + "\n" + msg);
 			return true;
 		} else if (lineNum == -1) {
-			System.out.println(msg);
+//			System.out.println(msg);
 			consoleText.setText(consoleText.getText() + "\n" + msg);
 			return false;
 		} else {
-			System.out.println("Compilation failed at line " + lineNum + ": \'" + line + "\'\nError: " + msg);
+//			System.out.println("Compilation failed at line " + lineNum + ": \'" + line + "\'\nError: " + msg);
 			consoleText.setText(consoleText.getText() + "\nCompilation failed at line " + lineNum + ": \'" + line
 					+ "\'\nError: " + msg);
 			return false;

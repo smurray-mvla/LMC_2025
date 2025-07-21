@@ -1,5 +1,44 @@
 How To: Variables
 
-This document is under construction
+Variables are locations in memory that are intended
+to hold data instead of instructions. In general, it is
+good practice to separate instructions from data; since 
+instructions always start executing from mem[0], it makes
+sense to place variables at the top of memory (mem[99],
+mem[98],...).
 
+Variables can be referred to by explicit location in 
+memory (for example, STA 99 stores whatever is in the
+register in mem[99]). However, the use of labels to 
+name variables is HIGHLY ENCOURAGED, especially if 
+meaningful names are used. 
 
+The following example* outputs the following values to
+the user and then halts: 
+
+5,4,3,2,1
+
+=======================================================
+               // load value, stop if zero
+    LDA var    // load from mem[var]
+    BRZ end    // branch to end if zero
+    OUT
+
+               // decrement mem[var]
+    LDA var    // load from mem[var]
+    SUB one    // sub mem[one] which is 1
+    STA var    // store into mem[var]
+
+    BRA 0    // branch to 0
+    end: HLT // when we get here, halt program
+@99 var: 5   // define label var, initialize to 5
+@98 zero: 0  // define label zero, initialize to 0
+@97 one: 1   // define label one, initialize to 1
+
+NOTE: The label zero refers to memory location 98.
+The instruction BRA zero is NOT the same as BRA 0:
+this would branch to mem[98] and, since the value
+in mem[98] is 0, would HLT.
+
+*Note: Code leveraged from original lmc_ui.jar with some 
+       modifications

@@ -1,4 +1,39 @@
 How To: Labels
 
-This document is under construction.
+Labels relate a text string to a memory address.
+This text string can then be used to specify
+the target address of a BRA/BRP/BRZ instructions or
+the memory address for ADD/SUB/STA/LDA instructions.
 
+A label can be any text string that starts with a lowercase
+letter followed by any combination of lowercase letters and
+numbers.
+
+Labels must be declared; this causes the compiler to
+associate the current memory location with the label.
+When declaring a label, it must immediately precede an actual 
+instruction and be terminated by a colon (:). Labels may be
+specified on a line by themselves, but the subsequent 
+instruction/data, while on a different line, must be at the same
+memory location.
+
+Labels do NOT have to be declared before use in code, but any
+label that is used as a memory reference must be declared 
+somewhere in the code; otherwise, compilation will fail.
+
+Example: add two numbers in a loop*
+====================================================================
+
+addlp:              // declare label addlp, same address
+                    // as the subsequent INP instruction
+        INP         // request a value
+        STA temp    // store in mem loc associated with temp
+        INP         // request a 2nd value
+        ADD temp    // add mem[temp] to register
+        OUT         // display result to user
+        BRA addlp   // set PC to the value associated with addlp
+temp:   0           // declare temp and initialize mem[temp] to 0.
+
+*Note: Code leveraged from original lmc_ui.jar with some 
+       modifications
+	

@@ -1,4 +1,38 @@
 Using Memory Dumps:
 
-This document is under construction.
+The "Dump memory..." button will output the values of
+all memory locations that are non-zero to the Emulator
+logs window. Values will be output in order, starting 
+at mem[0] and continuing through mem[99].
+
+Each value is reported as follows:
+
+@## <value>
+
+Memory location overrides are used so that the 
+memory dump contents could be copied, pasted
+back in the Instructions window, compiled and 
+then run. NOTE: Non-zero values of any
+memory locations used as data will be saved; 
+if your code does not explicitly initialize
+these values during execution, results of
+running the memory dump may not match your
+expectations.
+
+Example Memory Dump Output:
+============================================================
+
+@00 901
+@01 399
+@02 902
+@03 598
+@04 199
+@05 298
+@06 608
+@08 599
+@09 811
+@11 299
+@12 714
+@14 902
+@98 1
 
